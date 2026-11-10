@@ -94,6 +94,12 @@ CONTINUATION_RE = re.compile(r"(?i)^\s*(?:research topic|presented|presentation 
 PRESENTATION_LABEL_RE = re.compile(
     r"(?i)\b(accepted [a-z\- ]*?presentation|presented topic|presentation topic|presented|research topic)\s*:"
 )
+# Citation style: "Pickens, T.R., ... (2026). Title. PowerPoint presentation at the <venue>."
+PRESENTATION_CITATION_RE = re.compile(
+    r"^(?P<authors>.+?),?\s*\((?P<year>(?:19|20)\d{2})\)\.\s*(?P<topic>.+?)\.?\s+"
+    r"(?P<label>(?:accepted\s+)?[a-z\- ]*?presentation)\s+at\s+(?:the\s+)?(?P<venue>.+?)\.?$",
+    re.I,
+)
 EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 URL_RE = re.compile(r"(?:https?://|www\.)[^\s,;<>\"]+")
 
@@ -472,8 +478,18 @@ def parse_presentations(paras: list[Para]) -> list[dict]:
         text = " ".join([e["title"]] + e["sub"])
         year = YEAR_RE.search(text)
         item = {"venue": text, "label": "", "topic": "", "authors": "", "year": year.group(0) if year else ""}
-        m = PRESENTATION_LABEL_RE.search(text)
-        if m:
+        c = PRESENTATION_CITATION_RE.match(text)
+        m = None if c else PRESENTATION_LABEL_RE.search(text)
+        if c:
+            label = c.group("label").strip()
+            item.update(
+                venue=c.group("venue").strip(" ,.;"),
+                label=label[:1].upper() + label[1:],
+                topic=c.group("topic").strip(),
+                authors=c.group("authors").strip(" ,"),
+                year=c.group("year"),
+            )
+        elif m:
             rest = text[m.end():].strip().lstrip("“\"")
             close = re.search(r"[”\"]", rest)
             if close:
