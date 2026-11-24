@@ -1019,6 +1019,25 @@ def short_name(name: str) -> str:
     return name
 
 
+def person_json(cv: dict, description: str) -> str:
+    """schema.org Person for search engines: ties the site to the profiles linked in the CV."""
+    name = cv["contact"]["name"]
+    parts = name.split()
+    data = {
+        "@context": "https://schema.org",
+        "@type": "Person",
+        "name": name,
+        "alternateName": f"{parts[0]} {parts[-1]}" if len(parts) > 2 else None,
+        "url": SITE_URL,
+        "description": description,
+        "image": SITE_URL + PHOTOS["portrait"]["file"] if PHOTOS["portrait"] else None,
+        "worksFor": {"@type": "Organization", "name": "The University of Alabama"},
+        "sameAs": [l["url"] for l in cv["contact"]["links"] if l["url"].startswith("http") and SITE_URL.rstrip("/") not in l["url"]] or None,
+    }
+    # "</" can't appear inside a <script> block.
+    return json.dumps({k: v for k, v in data.items() if v}, ensure_ascii=False).replace("</", "<\\/")
+
+
 def layout(slug: str, title: str, body: str, cv: dict, description: str) -> str:
     name = cv["contact"]["name"]
     nav = "".join(
@@ -1030,6 +1049,7 @@ def layout(slug: str, title: str, body: str, cv: dict, description: str) -> str:
     year = date.today().year
     p = PHOTOS["portrait"]
     og_image = f'\n<meta property="og:image" content="{esc(p["file"])}">' if p else ""
+    person = f'\n<script type="application/ld+json">{person_json(cv, description)}</script>' if slug == "index" else ""
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -1041,7 +1061,7 @@ def layout(slug: str, title: str, body: str, cv: dict, description: str) -> str:
 <meta name="google-site-verification" content="{GOOGLE_SITE_VERIFICATION}">
 <meta property="og:title" content="{esc(page_title)}">
 <meta property="og:description" content="{esc(description)}">
-<meta property="og:type" content="website">{og_image}
+<meta property="og:type" content="website">{og_image}{person}
 <link rel="icon" href="{favicon(name)}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
