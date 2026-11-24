@@ -65,6 +65,10 @@ PAGES = [
     ("contact", "Contact", "contact"),
 ]
 
+SITE_URL = "https://mosesogunniran.github.io/"
+# Google Search Console ownership check (URL-prefix property for SITE_URL).
+GOOGLE_SITE_VERIFICATION = "R1k9RnAkLNo_23ckZlLCvZ3O1dR67VDJUbhgI0JxR0M"
+
 W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 MC_FALLBACK = "{http://schemas.openxmlformats.org/markup-compatibility/2006}Fallback"
 
@@ -1034,6 +1038,7 @@ def layout(slug: str, title: str, body: str, cv: dict, description: str) -> str:
 <title>{esc(page_title)}</title>
 <meta name="description" content="{esc(description)}">
 <meta name="color-scheme" content="light dark">
+<meta name="google-site-verification" content="{GOOGLE_SITE_VERIFICATION}">
 <meta property="og:title" content="{esc(page_title)}">
 <meta property="og:description" content="{esc(description)}">
 <meta property="og:type" content="website">{og_image}
@@ -1394,6 +1399,13 @@ def build(cv_path: Path = CV_PATH, out_dir: Path = DIST) -> Path:
         shutil.copy2(ROOT / rel, out_dir / rel)
     n_links = linkify_docx(cv_path, out_dir / cv_file)
     (out_dir / ".nojekyll").write_text("", encoding="utf-8")
+    today = date.today().isoformat()
+    urls = "".join(f"<url><loc>{SITE_URL}{'' if href == './' else href}</loc><lastmod>{today}</lastmod></url>"
+                   for _, _, href in PAGES)
+    (out_dir / "sitemap.xml").write_text(
+        f'<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>\n',
+        encoding="utf-8")
+    (out_dir / "robots.txt").write_text(f"User-agent: *\nAllow: /\n\nSitemap: {SITE_URL}sitemap.xml\n", encoding="utf-8")
 
     n_pubs = sum(len(g["items"]) for g in cv["publications"])
     print(f"Built {len(pages)} pages into {out_dir.name}/ "
